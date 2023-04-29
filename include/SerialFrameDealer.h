@@ -4,11 +4,17 @@
 
 #ifndef SERIAL_SERIALFRAMEDEALER_H
 #define SERIAL_SERIALFRAMEDEALER_H
-
+#define float32_t float
+#define float64_t double
 #include <thread>
 #include "ros/ros.h"
 #include "geometry_msgs/Twist.h"
+#include "geometry_msgs/PoseStamped.h"
 #include "std_msgs/Empty.h"
+#include "std_msgs/Int8.h"
+#include "std_srvs/SetBool.h"
+
+
 #include "Serial.h"
 
 
@@ -19,78 +25,103 @@ private:
 
     enum class SendPackageID: unsigned char{
         GIMBAL = 0x01,
-        MOVE = 0x02
+        MOVE = 0x02,
+        HEARTBEAT = 0x41
 
     };
 
     enum class RecvPackageID: unsigned char{
-        GIMBAL = 0x01,
-        LOCATE=0x81
+        GIMBAL = 0x81,
+        ODOM=0x82,
+        GOAL=0x83,
+        ENEMY=0x84,
+        UWB=0x85,
+        BUFF=0xC1
     };
 
 #pragma pack(1)
     struct Header {
-        const unsigned char head = HEAD;
-        unsigned char id = 0x00;
-        unsigned char crc8 = 0x00;
+        const uint8_t head = HEAD;
+        uint8_t id = 0x00;
+        uint8_t crc8 = 0x00;
     };
 
-    struct SendMoveDataFrame {
+    struct MoveControlFrame {
         Header header;
-        float x = 0.;
-        float y = 0.;
-        unsigned char rotate = 0;
-        unsigned char crc8 = 0x0;
-        SendMoveDataFrame() {
+        float32_t x = 0.;
+        float32_t y = 0.;
+        float32_t yaw = 0.;
+        uint8_t crc8 = 0x0;
+        MoveControlFrame() {
             header.id = static_cast<unsigned char>(SendPackageID::MOVE);
         }
 
-    } sendMoveDataFrame;
+    } moveControlFrame;
 
-    struct SendGimbalDataFrame {
+    struct GimbalControlFrame {
         Header header;
-        float pitch = 0.;
-        float yaw = 0.;
-        unsigned char fire = 0;
-        unsigned char crc8 = 0x0;
-        SendGimbalDataFrame() {
+        float32_t pitch = 0.;
+        float32_t yaw = 0.;
+        uint8_t fire = 0;
+        uint8_t crc8 = 0x0;
+        GimbalControlFrame() {
             header.id = static_cast<unsigned char>(SendPackageID::GIMBAL);
         }
-    } gimbalDataFrame;
+    } gimbalControlFrame;
 
-    struct RecvGimbalDataFrame {
-        float pitch = 0.;
-        float yaw = 0.;
-        float fire = 0.;
-        unsigned char crc8 = 0x0;
-    } recvGimbalDataFrame;
+    struct HeartBeatFrame{
+        Header header;
+        HeartBeatFrame(){
+            header.id = static_cast<unsigned char>(SendPackageID::HEARTBEAT);
+        }
+    }heartBeatFrame;
 
-    struct RecvLocateDataFrame {
-        float x = 0.;
-        float y = 0.;
-        unsigned char crc8 = 0x0;
-    } recvLocateDataFrame;
+    struct GimbalFeedbackFrame {
+        float32_t pitch = 0.;
+        float32_t yaw = 0.;
+        float32_t fire = 0.;
+        uint8_t crc8 = 0x0;
+    } gimbalFeedbackFrame;
 
+    struct OdomFeedbackFrame {
+        float32_t x = 0.;
+        float32_t y = 0.;
+        uint8_t crc8 = 0x0;
+    } odomFeedbackFrame;
+
+    struct GoalFeedbackFrame{
+        float32_t x;
+        float32_t y;
+    }goalFeedbackFrame;
+
+    struct EnemyFeedbackFrame{
+        uint8_t isRed;
+    }enemyFeedbackFrame;
+
+    struct UWBFeedbackFrame{
+        float32_t x;
+        float32_t y;
+    }uwbFeedbackFrame;
 #pragma pack()
-    Serial* serial;
+    std::unique_ptr<Serial> serial;
 
-    std::string subName, pubName, serialName;
+    std::string subName, goalTopicName, serialName;
     ros::NodeHandle nodeHandle;
 
-    ros::Publisher pub;
-    ros::Subscriber subscriber;
+    ros::Publisher goalPublisher, uwbPublisher;
+    ros::Subscriber twistSubscriber;
 
-    std::thread recvThread;
+    ros::ServiceClient enemyClient, buffClient;
+
+    std::unique_ptr<std::thread> recvThread;
 
     void twistCallback(const geometry_msgs::Twist::ConstPtr &msg);
-    void serialRecv();
+
+    [[noreturn]] void serialRecv();
 
 public:
     SerialFrameDealer() = delete;
     explicit SerialFrameDealer(ros::NodeHandle &nh);
-    ~SerialFrameDealer(){
-        delete serial;
-    }
     SerialFrameDealer(SerialFrameDealer &serialFrameDealer) = delete;
 
 };

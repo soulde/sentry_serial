@@ -89,19 +89,17 @@ public:
     ~Serial() { close(_handle); }
 
 
-    uint32_t Send(const unsigned char *data, int dataLenth) {
-        uint32_t ret = write(_handle, data, dataLenth);
+    ssize_t Send(const unsigned char *data, int dataLenth) const {
+        ssize_t ret = write(_handle, data, dataLenth);
         if (ret <= 0) {
             throw_with_trace(std::runtime_error, "can not send msg successfully");
-
         } else {
 //            LOG(INFO) << "sent " << ret << " bits" << std::endl;
-
         }
         return ret;
     }
 
-    uint32_t Recv(uint8_t *data, int dataMaxLenth) {
+    ssize_t Recv(uint8_t *data, int dataMaxLenth) const {
         return read(_handle, data, dataMaxLenth);
     }
 };
