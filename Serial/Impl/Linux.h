@@ -94,7 +94,7 @@ public:
         if (ret <= 0) {
             throw_with_trace(std::runtime_error, "can not send msg successfully");
         } else {
-//            LOG(INFO) << "sent " << ret << " bits" << std::endl;
+            LOG(INFO) << "sent " << ret << " bits" << std::endl;
         }
         return ret;
     }

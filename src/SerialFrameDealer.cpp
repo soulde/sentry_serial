@@ -5,13 +5,12 @@
 #include "SerialFrameDealer.h"
 #include "CRC/CRC.h"
 #include "Serial.h"
-//#include "pub_msgs/feedback.h"
-//#include "pub_msgs/locate.h"
+
 
 SerialFrameDealer::SerialFrameDealer(ros::NodeHandle &nh) : nodeHandle(nh) {
-    nh.getParam("/serial/subTopic", subName);
-    nh.getParam("/serial/goalTopic", goalTopicName);
-    nh.getParam("/serial/serialName", serialName);
+    nh.getParam("/sentry_serial/subTopic", subName);
+    nh.getParam("/sentry_serial/goalTopic", goalTopicName);
+    nh.getParam("/sentry_serial/serialName", serialName);
     serial.reset(new Serial(serialName.c_str()));
 
     goalPublisher = nh.advertise<geometry_msgs::PoseStamped>(goalTopicName, 1);
@@ -31,14 +30,14 @@ void SerialFrameDealer::twistCallback(const geometry_msgs::Twist::ConstPtr &msg)
     moveControlFrame.x = static_cast<float>(msg->linear.x);
     moveControlFrame.y = static_cast<float>(msg->linear.y);
     moveControlFrame.yaw = static_cast<float>(msg->angular.x);
-    Append_CRC8_Check_Sum(reinterpret_cast<unsigned char *>(&moveControlFrame.x),
-                          sizeof(MoveControlFrame) - sizeof(Header));
+    Append_CRC8_Check_Sum(reinterpret_cast<unsigned char *>(&moveControlFrame), sizeof(MoveControlFrame));
 
     ssize_t ret = serial->Send(reinterpret_cast<const unsigned char *>(&moveControlFrame), sizeof(MoveControlFrame));
-    std::cout << ret << std::endl;
+
     for (int i = 0; i < sizeof(MoveControlFrame); ++i) {
         std::cout << std::hex << " 0x" << static_cast<int>(*(reinterpret_cast<uint8_t *>(&moveControlFrame) + i));
     }
+    std::cout << std::endl;
 
 
 }
@@ -53,8 +52,6 @@ void SerialFrameDealer::twistCallback(const geometry_msgs::Twist::ConstPtr &msg)
                 break;
             }
         }
-
-
         serial->Recv(reinterpret_cast<unsigned char *>(&header + 1), sizeof(Header) - 1);
         if (Verify_CRC8_Check_Sum(reinterpret_cast<unsigned char *>(&header), sizeof(Header))) {
             switch (static_cast<RecvPackageID>(header.id)) {
