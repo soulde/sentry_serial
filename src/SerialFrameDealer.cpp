@@ -29,7 +29,7 @@ void SerialFrameDealer::twistCallback(const geometry_msgs::Twist::ConstPtr &msg)
 
     moveControlFrame.x = static_cast<float>(msg->linear.x);
     moveControlFrame.y = static_cast<float>(msg->linear.y);
-    moveControlFrame.yaw = static_cast<float>(msg->angular.x);
+    moveControlFrame.yaw = static_cast<float>(msg->angular.z);
     Append_CRC8_Check_Sum(reinterpret_cast<unsigned char *>(&moveControlFrame), sizeof(MoveControlFrame));
 
     ssize_t ret = serial->Send(reinterpret_cast<const unsigned char *>(&moveControlFrame), sizeof(MoveControlFrame));
