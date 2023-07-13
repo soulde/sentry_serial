@@ -3,7 +3,7 @@
 //
 #pragma once
 
-#include "Serial.h"
+//#include "Serial.h"
 #include <cstdint>
 
 class Serial {
@@ -16,9 +16,11 @@ public:
 
     Serial(const char *portName, uint32_t baudrate=UGAS_115200, uint8_t parity=NOPARITY, uint8_t databit=DATABIT8, uint8_t stopbit=ONESTOPBIT,
            bool synFlag = true) {
-        _handle = open(portName, O_RDWR | O_NOCTTY | O_NONBLOCK);
+        _handle = open(portName, O_RDWR | O_NOCTTY);
         if (_handle >= 0) {
             std::cout << "Serial[" << _handle << "] " << portName << " start success" << std::endl;
+        }else{
+            std::cerr<< "Serial[" << _handle << "] " << portName << " start failed" << std::endl;
         }
 
 
@@ -27,6 +29,10 @@ public:
         tcgetattr(_handle, &options);
         cfsetispeed(&options, baudrate);
         cfsetospeed(&options, baudrate);
+
+        options.c_lflag  &= ~(ICANON | ECHO | ECHOE | ISIG);  /*Input*/
+        options.c_oflag  &= ~OPOST;   /*Output*/
+
         switch (parity) {
 // 无校验
             case 0:

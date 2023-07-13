@@ -3,6 +3,7 @@
 //
 
 #ifndef UGAS_SERIALDEFINES_H
+
 #define UGAS_SERIALDEFINES_H
 
 #ifdef _WIN32

@@ -6,14 +6,21 @@
 #define SERIAL_SERIALFRAMEDEALER_H
 #define float32_t float
 #define float64_t double
-#include <thread>
-#include "ros/ros.h"
-#include "geometry_msgs/Twist.h"
-#include "geometry_msgs/PoseStamped.h"
-#include "std_msgs/Empty.h"
-#include "std_msgs/Int8.h"
-#include "std_srvs/SetBool.h"
 
+#include <thread>
+#include <ros/ros.h>
+#include <geometry_msgs/Twist.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <nav_msgs/Odometry.h>
+#include <sensor_msgs/NavSatFix.h>
+#include <std_msgs/Empty.h>
+#include <std_msgs/Int8.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_eigen/tf2_eigen.h>
+#include <std_srvs/SetBool.h>
+#include <Eigen/Eigen>
 
 #include "Serial.h"
 
@@ -23,20 +30,21 @@ class SerialFrameDealer {
 private:
     static constexpr unsigned char HEAD = 0xFE;
 
-    enum class SendPackageID: unsigned char{
+    enum class SendPackageID : unsigned char {
         GIMBAL = 0x01,
         MOVE = 0x02,
+        GNSS = 0x03,
         HEARTBEAT = 0x41
 
     };
 
-    enum class RecvPackageID: unsigned char{
+    enum class RecvPackageID : unsigned char {
         GIMBAL = 0x81,
-        ODOM=0x82,
-        GOAL=0x83,
-        ENEMY=0x84,
-        UWB=0x85,
-        BUFF=0xC1
+        ODOM = 0x82,
+        GOAL = 0x83,
+        ENEMY = 0x84,
+        UWB = 0x85,
+        BUFF = 0xC1
     };
 
 #pragma pack(1)
@@ -52,6 +60,7 @@ private:
         float32_t y = 0.;
         float32_t yaw = 0.;
         uint8_t crc8 = 0x0;
+
         MoveControlFrame() {
             header.id = static_cast<unsigned char>(SendPackageID::MOVE);
         }
@@ -64,17 +73,29 @@ private:
         float32_t yaw = 0.;
         uint8_t fire = 0;
         uint8_t crc8 = 0x0;
+
         GimbalControlFrame() {
             header.id = static_cast<unsigned char>(SendPackageID::GIMBAL);
         }
     } gimbalControlFrame;
 
-    struct HeartBeatFrame{
+    struct HeartBeatFrame {
         Header header;
-        HeartBeatFrame(){
+        HeartBeatFrame() {
             header.id = static_cast<unsigned char>(SendPackageID::HEARTBEAT);
         }
-    }heartBeatFrame;
+    } heartBeatFrame;
+
+    struct GNSSFrame{
+        Header header;
+        float32_t lon;
+        float32_t lat;
+        float32_t alt;
+        uint8_t crc8 = 0x0;
+        GNSSFrame(){
+            header.id = static_cast<unsigned char>(SendPackageID::GNSS);
+        }
+    }GNSSFrame;
 
     struct GimbalFeedbackFrame {
         float32_t pitch = 0.;
@@ -85,43 +106,65 @@ private:
 
     struct OdomFeedbackFrame {
         float32_t x = 0.;
+        float32_t vx = 0.;
         float32_t y = 0.;
+        float32_t vy = 0.;
+        float32_t yaw = 0.;
+        float32_t wy = 0.;
         uint8_t crc8 = 0x0;
     } odomFeedbackFrame;
 
-    struct GoalFeedbackFrame{
+    struct GoalFeedbackFrame {
         float32_t x;
         float32_t y;
-    }goalFeedbackFrame;
+    } goalFeedbackFrame;
 
-    struct EnemyFeedbackFrame{
+    struct EnemyFeedbackFrame {
         uint8_t isRed;
-    }enemyFeedbackFrame;
+    } enemyFeedbackFrame;
 
-    struct UWBFeedbackFrame{
+    struct UWBFeedbackFrame {
         float32_t x;
         float32_t y;
-    }uwbFeedbackFrame;
+    } uwbFeedbackFrame;
 #pragma pack()
-    std::unique_ptr<Serial> serial;
-
-    std::string subName, goalTopicName, serialName;
+    Serial *serial;
+    std::string serialName;
+    std::string subTopic, goalTopic, GNSSTopic="fix";
+    std::string fixFrame = "world", robotFrame = "base", gimbalFrame = "gimbal", odomFrame = "base_odom";
+    bool useBaseOdomOnly = true;
+    Eigen::Translation3d base2gimbalTrans;
     ros::NodeHandle nodeHandle;
 
-    ros::Publisher goalPublisher, uwbPublisher;
-    ros::Subscriber twistSubscriber;
+    nav_msgs::Odometry odom;
+    geometry_msgs::TransformStamped base2gimbal, world2base;
+    geometry_msgs::PoseStamped goal, uwb;
+    ros::Publisher goalPublisher, uwbPublisher, odomPublisher;
+    ros::Subscriber twistSubscriber, GNSSSubscriber;
 
     ros::ServiceClient enemyClient, buffClient;
 
-    std::unique_ptr<std::thread> recvThread;
+    tf2_ros::TransformBroadcaster broadcaster;
+    tf2_ros::StaticTransformBroadcaster staticBroadcaster;
+
+    std::thread *recvThread;
 
     void twistCallback(const geometry_msgs::Twist::ConstPtr &msg);
+
+    void GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
     [[noreturn]] void serialRecv();
 
 public:
     SerialFrameDealer() = delete;
+
     explicit SerialFrameDealer(ros::NodeHandle &nh);
+
+    ~SerialFrameDealer() {
+        delete serial;
+        delete recvThread;
+    }
+
     SerialFrameDealer(SerialFrameDealer &serialFrameDealer) = delete;
 
 };
