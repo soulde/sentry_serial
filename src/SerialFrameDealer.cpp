@@ -109,6 +109,7 @@ void SerialFrameDealer::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr &msg
 
             switch (static_cast<RecvPackageID>(header.id)) {
                 case RecvPackageID::GIMBAL: {
+                    memcpy(reinterpret_cast<unsigned char *>(&gimbalFeedbackFrame), &header, sizeof(Header));
                     serial->Recv(reinterpret_cast<unsigned char *>(&gimbalFeedbackFrame) + sizeof(Header),
                                  sizeof(GimbalFeedbackFrame) - sizeof(Header));
                     if (Verify_CRC8_Check_Sum(reinterpret_cast<unsigned char *>(&gimbalFeedbackFrame),
@@ -127,6 +128,7 @@ void SerialFrameDealer::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr &msg
                 }
                     break;
                 case RecvPackageID::ODOM: {
+                    memcpy(reinterpret_cast<unsigned char *>(&odomFeedbackFrame), &header, sizeof(Header));
                     static uint32_t count;
                     serial->Recv(reinterpret_cast<unsigned char *>(&odomFeedbackFrame) + sizeof(Header),
                                  sizeof(OdomFeedbackFrame) - sizeof(Header));
@@ -156,6 +158,7 @@ void SerialFrameDealer::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr &msg
                 }
                     break;
                 case RecvPackageID::GOAL: {
+                    memcpy(reinterpret_cast<unsigned char *>(&goalFeedbackFrame), &header, sizeof(Header));
                     serial->Recv(reinterpret_cast<unsigned char *>(&goalFeedbackFrame) + sizeof(Header),
                                  sizeof(GoalFeedbackFrame) - sizeof(Header));
                     if (Verify_CRC8_Check_Sum(reinterpret_cast<unsigned char *>(&goalFeedbackFrame),
@@ -169,6 +172,7 @@ void SerialFrameDealer::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr &msg
                 }
                     break;
                 case RecvPackageID::ENEMY: {
+                    memcpy(reinterpret_cast<unsigned char *>(&enemyFeedbackFrame), &header, sizeof(Header));
                     serial->Recv(reinterpret_cast<unsigned char *>(&enemyFeedbackFrame) + sizeof(Header),
                                  sizeof(enemyFeedbackFrame) - sizeof(Header));
                     if (Verify_CRC8_Check_Sum(reinterpret_cast<unsigned char *>(&enemyFeedbackFrame),
@@ -182,6 +186,7 @@ void SerialFrameDealer::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr &msg
                 }
                     break;
                 case RecvPackageID::UWB: {
+                    memcpy(reinterpret_cast<unsigned char *>(&uwbFeedbackFrame), &header, sizeof(Header));
                     serial->Recv(reinterpret_cast<unsigned char *>(&uwbFeedbackFrame) + sizeof(Header),
                                  sizeof(UWBFeedbackFrame) - sizeof(Header));
                     if (Verify_CRC8_Check_Sum(reinterpret_cast<unsigned char *>(&uwbFeedbackFrame),
@@ -195,12 +200,12 @@ void SerialFrameDealer::GNSSCallback(const sensor_msgs::NavSatFix::ConstPtr &msg
                     }
                 }
                     break;
-                case RecvPackageID::BUFF: {
-                    std_srvs::SetBool buff;
-                    buff.request.data = true;
-                    buffClient.call(buff);
-                }
-                    break;
+//                case RecvPackageID::BUFF: {
+//                    std_srvs::SetBool buff;
+//                    buff.request.data = true;
+//                    buffClient.call(buff);
+//                }
+//                    break;
             }
         }
     }
